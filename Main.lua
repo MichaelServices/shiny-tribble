@@ -27,7 +27,7 @@ frame.Position = UDim2.new(0.5, -200, 0.5, -150)
 frame.AnchorPoint = Vector2.new(0.5, 0.5)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BackgroundTransparency = 0.2
-frame.Visible = false
+frame.Visible = false  -- Initially hidden
 frame.ClipsDescendants = true
 
 local uiCorner = Instance.new("UICorner", frame)
@@ -61,11 +61,11 @@ TweenService:Create(welcome, TweenInfo.new(1, Enum.EasingStyle.Quad), {TextTrans
 task.wait(2)
 TweenService:Create(welcome, TweenInfo.new(1), {TextTransparency = 1}):Play()
 
--- TOGGLE GUI
+-- TOGGLE GUI WITH TAB KEY
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if input.KeyCode == Enum.KeyCode.RightShift and not gameProcessed then
-		frame.Visible = not frame.Visible
-		blurBG.Enabled = frame.Visible
+	if input.KeyCode == Enum.KeyCode.Tab and not gameProcessed then
+		frame.Visible = not frame.Visible  -- Toggle visibility
+		blurBG.Enabled = frame.Visible  -- Toggle blur effect
 	end
 end)
 
@@ -176,5 +176,5 @@ task.delay(1, function()
 	task.wait(0.6)
 	showNotification("Visual Preset GUI ready.")
 	task.wait(0.6)
-	showNotification("Use Right Shift to toggle it.")
+	showNotification("Use Tab to toggle it.")
 end)
