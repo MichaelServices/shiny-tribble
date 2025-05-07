@@ -1,156 +1,180 @@
-local player = game.Players.LocalPlayer
-local camera = workspace.CurrentCamera
-local Lighting = game:GetService("Lighting")
+-- SERVICES
+local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
 local PlayerGui = player:WaitForChild("PlayerGui")
 
--- FOV Tween
-TweenService:Create(camera, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-    FieldOfView = 120
-}):Play()
+-- VARIABLES
+local activeBlur = Instance.new("BlurEffect", Lighting)
+activeBlur.Size = 0
+activeBlur.Enabled = false
 
--- Apply visual enhancements
-local function applyVisualEnhancements()
-    Lighting.Technology = Enum.Technology.Future
-    Lighting.GlobalShadows = true
-    Lighting.EnvironmentDiffuseScale = 0.5
-    Lighting.EnvironmentSpecularScale = 1
-    Lighting.Ambient = Color3.fromRGB(33, 33, 33)
-    Lighting.OutdoorAmbient = Color3.fromRGB(80, 80, 80)
-    Lighting.Brightness = 3
-
-    -- Bloom Effect
-    if not Lighting:FindFirstChildOfClass("BloomEffect") then
-        local bloom = Instance.new("BloomEffect")
-        bloom.Intensity = 1.5
-        bloom.Threshold = 0.8
-        bloom.Size = 56
-        bloom.Parent = Lighting
-    end
-
-    -- Color Correction
-    if not Lighting:FindFirstChildOfClass("ColorCorrectionEffect") then
-        local colorCorrection = Instance.new("ColorCorrectionEffect")
-        colorCorrection.Brightness = 0.1
-        colorCorrection.Contrast = 0.2
-        colorCorrection.Saturation = 0.3
-        colorCorrection.TintColor = Color3.fromRGB(255, 255, 255)
-        colorCorrection.Parent = Lighting
-    end
-
-    -- Sun Rays Effect
-    if not Lighting:FindFirstChildOfClass("SunRaysEffect") then
-        local sunRays = Instance.new("SunRaysEffect")
-        sunRays.Intensity = 0.15
-        sunRays.Spread = 0.6
-        sunRays.Parent = Lighting
-    end
-
-    -- Depth of Field
-    if not Lighting:FindFirstChildOfClass("DepthOfFieldEffect") then
-        local dof = Instance.new("DepthOfFieldEffect")
-        dof.FarIntensity = 0.05
-        dof.FocusDistance = 300
-        dof.InFocusRadius = 100
-        dof.NearIntensity = 0.05
-        dof.Parent = Lighting
-    end
-end
-applyVisualEnhancements()
-
--- Notification system setup
-local NOTIFICATION_LIFETIME = 3
-local SLIDE_TIME = 0.4
-local FADE_TIME = 0.3
-local SPACING = 10
-local notifications = {}
-
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "NotificationGUI"
+-- UI BASE
+local screenGui = Instance.new("ScreenGui", PlayerGui)
+screenGui.Name = "VisualSettingsUI"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = PlayerGui
+screenGui.IgnoreGuiInset = true
 
-local container = Instance.new("Frame")
-container.Name = "NotificationContainer"
-container.Size = UDim2.new(0.3, 0, 1, 0)
-container.Position = UDim2.new(0.65, 0, 0, 10)
-container.BackgroundTransparency = 1
-container.Parent = screenGui
+-- CONTAINER
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 400, 0, 300)
+frame.Position = UDim2.new(0.5, -200, 0.5, -150)
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BackgroundTransparency = 0.2
+frame.Visible = false
+frame.ClipsDescendants = true
 
--- Roundify function for corners
-local function roundify(obj)
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = obj
+local uiCorner = Instance.new("UICorner", frame)
+uiCorner.CornerRadius = UDim.new(0, 12)
+
+local uiStroke = Instance.new("UIStroke", frame)
+uiStroke.Thickness = 1
+uiStroke.Color = Color3.fromRGB(80, 80, 80)
+
+-- DYNAMIC BLUR BACKGROUND (EXTRA POLISH)
+local blurGui = Instance.new("Frame", frame)
+blurGui.BackgroundTransparency = 1
+blurGui.Size = UDim2.new(1, 0, 1, 0)
+blurGui.ZIndex = -1
+
+local blurBG = Instance.new("BlurEffect", Lighting)
+blurBG.Size = 15
+blurBG.Enabled = false
+
+-- FADE-IN WELCOME
+local welcome = Instance.new("TextLabel", screenGui)
+welcome.Size = UDim2.new(1, 0, 0.15, 0)
+welcome.Position = UDim2.new(0, 0, 0.4, 0)
+welcome.BackgroundTransparency = 1
+welcome.Text = "Welcome to Enhanced Mode"
+welcome.TextScaled = true
+welcome.TextColor3 = Color3.fromRGB(255, 255, 255)
+welcome.Font = Enum.Font.GothamBold
+
+TweenService:Create(welcome, TweenInfo.new(1, Enum.EasingStyle.Quad), {TextTransparency = 0}):Play()
+task.wait(2)
+TweenService:Create(welcome, TweenInfo.new(1), {TextTransparency = 1}):Play()
+
+-- TOGGLE GUI
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if input.KeyCode == Enum.KeyCode.RightShift and not gameProcessed then
+		frame.Visible = not frame.Visible
+		blurBG.Enabled = frame.Visible
+	end
+end)
+
+-- PRESET FUNCTIONS
+local function applyPreset(preset)
+	if preset == "Realistic" then
+		Lighting.Brightness = 3
+		Lighting.EnvironmentDiffuseScale = 0.5
+		Lighting.EnvironmentSpecularScale = 1
+		Lighting.Ambient = Color3.fromRGB(33, 33, 33)
+	elseif preset == "Cinematic" then
+		Lighting.Brightness = 2
+		Lighting.EnvironmentDiffuseScale = 0.2
+		Lighting.Ambient = Color3.fromRGB(10, 10, 10)
+	elseif preset == "Vibrant" then
+		Lighting.Brightness = 4
+		Lighting.EnvironmentSpecularScale = 1.5
+	elseif preset == "Retro" then
+		Lighting.Brightness = 1
+		Lighting.Ambient = Color3.fromRGB(128, 64, 64)
+	end
 end
 
--- Rearrange notifications when they slide in/out
-local function rearrangeNotifications()
-    for i, notif in ipairs(notifications) do
-        local targetY = (i - 1) * (40 + SPACING)
-        TweenService:Create(notif, TweenInfo.new(0.3), {
-            Position = UDim2.new(1, -10, 0, targetY)
-        }):Play()
-    end
+-- PRESET BUTTONS
+local presets = {"Realistic", "Cinematic", "Vibrant", "Retro"}
+for i, name in ipairs(presets) do
+	local btn = Instance.new("TextButton", frame)
+	btn.Size = UDim2.new(0.4, 0, 0, 30)
+	btn.Position = UDim2.new(0.05, 0, 0, 40 * i)
+	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Text = name
+	btn.Font = Enum.Font.Gotham
+	btn.TextScaled = true
+	local uic = Instance.new("UICorner", btn)
+	uic.CornerRadius = UDim.new(0, 6)
+
+	btn.MouseEnter:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+	end)
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
+	end)
+
+	btn.MouseButton1Click:Connect(function()
+		applyPreset(name)
+	end)
 end
 
--- Show notifications with smooth animations
-local function showNotification(message, notifColor)
-    local notif = Instance.new("TextLabel")
-    notif.Text = message
-    notif.Size = UDim2.new(1, -20, 0, 40)
-    notif.Position = UDim2.new(1, 100, 0, 0)
-    notif.BackgroundColor3 = notifColor or Color3.fromRGB(30, 30, 30)
-    notif.TextColor3 = Color3.fromRGB(255, 255, 255)
-    notif.Font = Enum.Font.Gotham
-    notif.TextScaled = true
-    notif.BackgroundTransparency = 0.2
-    notif.BorderSizePixel = 0
-    notif.AnchorPoint = Vector2.new(1, 0)
-    notif.ZIndex = 2
-    notif.TextWrapped = true
-    notif.TextXAlignment = Enum.TextXAlignment.Left
-    notif.TextYAlignment = Enum.TextYAlignment.Center
-    notif.Parent = container
-    roundify(notif)
+-- FOV SLIDER
+local fov = 90
+local fovSlider = Instance.new("TextButton", frame)
+fovSlider.Size = UDim2.new(0.9, 0, 0, 30)
+fovSlider.Position = UDim2.new(0.05, 0, 0.8, 0)
+fovSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+fovSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+fovSlider.Text = "FOV: " .. fov
+fovSlider.Font = Enum.Font.Gotham
+fovSlider.TextScaled = true
+Instance.new("UICorner", fovSlider)
 
-    -- Slide in the notification
-    table.insert(notifications, notif)
-    rearrangeNotifications()
+fovSlider.MouseButton1Click:Connect(function()
+	fov += 10
+	if fov > 120 then fov = 60 end
+	fovSlider.Text = "FOV: " .. fov
+	TweenService:Create(camera, TweenInfo.new(0.3), {FieldOfView = fov}):Play()
+end)
 
-    TweenService:Create(notif, TweenInfo.new(SLIDE_TIME), {
-        Position = UDim2.new(1, -10, 0, (#notifications - 1) * (40 + SPACING))
-    }):Play()
+-- BLUR ON TURNING
+local lastRotation = camera.CFrame.LookVector
+RunService.RenderStepped:Connect(function()
+	local current = camera.CFrame.LookVector
+	local angle = math.acos(current:Dot(lastRotation))
+	if angle > 0.02 then
+		activeBlur.Enabled = true
+		activeBlur.Size = math.clamp(angle * 100, 5, 20)
+	else
+		activeBlur.Enabled = false
+	end
+	lastRotation = current
+end)
 
-    -- Fade in and out with delay
-    TweenService:Create(notif, TweenInfo.new(FADE_TIME, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        BackgroundTransparency = 0.8
-    }):Play()
+-- NOTIFICATIONS
+local function showNotification(text)
+	local notif = Instance.new("TextLabel", screenGui)
+	notif.Size = UDim2.new(0.25, 0, 0, 40)
+	notif.Position = UDim2.new(0.7, 0, 0.05, 0)
+	notif.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	notif.TextColor3 = Color3.fromRGB(255, 255, 255)
+	notif.Font = Enum.Font.GothamBold
+	notif.TextScaled = true
+	notif.Text = text
+	notif.AnchorPoint = Vector2.new(0.5, 0)
+	notif.BackgroundTransparency = 0.2
+	Instance.new("UICorner", notif)
 
-    -- Handle notification lifetime
-    task.delay(NOTIFICATION_LIFETIME, function()
-        TweenService:Create(notif, TweenInfo.new(SLIDE_TIME), {
-            Position = UDim2.new(1, 100, 0, notif.Position.Y.Offset)
-        }):Play()
-
-        task.wait(SLIDE_TIME)
-        notif:Destroy()
-
-        -- Clean up notification list and rearrange
-        for i, v in ipairs(notifications) do
-            if v == notif then
-                table.remove(notifications, i)
-                break
-            end
-        end
-        rearrangeNotifications()
-    end)
+	TweenService:Create(notif, TweenInfo.new(0.4), {Position = notif.Position - UDim2.new(0, 0, 0.03, 0)}):Play()
+	task.delay(2, function()
+		TweenService:Create(notif, TweenInfo.new(0.3), {TextTransparency = 1, BackgroundTransparency = 1}):Play()
+		task.wait(0.4)
+		notif:Destroy()
+	end)
 end
 
--- Show initial notifications
-task.wait(1)
-showNotification("FOV set to 120.", Color3.fromRGB(50, 50, 255))  -- Blue notification
-task.wait(1)
-showNotification("Visual quality enhanced.", Color3.fromRGB(50, 255, 50))  -- Green notification
-task.wait(1)
-showNotification("Thanks for using my script!", Color3.fromRGB(255, 165, 0))  -- Orange notification
+-- Example notifications
+task.delay(1, function()
+	showNotification("FOV set to 90.")
+	task.wait(0.6)
+	showNotification("Visual Preset GUI ready.")
+	task.wait(0.6)
+	showNotification("Use Right Shift to toggle it.")
+end)
